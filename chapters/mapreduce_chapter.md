@@ -111,7 +111,7 @@ Now we can see that during the run, one of the mappers had crashed. However, Had
 So, at the end of the job, the total number of mappers launched was 3, where one mapper had failed.
 ![Hadoop_streaming_output_failed_mapper_counters](/images/figures/hadoop_output_failed_mapper_counters.png)
 
-### Adding the Reducer
+### Adding Reducer
 In order to add the reducer, its name has to appear in the `-files` and at `-reducer`. Besides, the number of reduce tasks `-numReduceTasks` has to be greater than zero. If this is the only MapReduce task, the number of the output files (excluding `_SUCCESS`) will match the number of the reducers. 
 
 ```console
@@ -126,6 +126,16 @@ yarn jar /opt/hadoop/hadoop-streaming.jar \
 -output wordcount
 ```
 
+After it finishes, the result is available in `wordcount/part-00000`:
+```console
+hdfs dfs -cat wordcount/part-00000 | head
+```
+
+## Passing Files to the nodes
+Sometimes we might need to pass additional data files to the mapper and/or reducer. One example can be the word count problem, where the words are not in the stop list. The stop list can be a file that would have to be passed over to all the nodes. To make sure this happens, we need to list this file at `-files` and then it will be accessible. 
+
+## Review Questions
+
 ## Exercises
 1. Use MapReduce to count the number of words of each length in text. Example output:
 ```
@@ -136,7 +146,7 @@ yarn jar /opt/hadoop/hadoop-streaming.jar \
 50 1
 ```
 This means that the text contains 1234 one char long words, 22100 two character long words, etc.
-2. You work for a social network and you deal with a file containing users with a list of friends. Suppose users are: A,B,C, and D. Then the file format can be as follows: 
+2. You work for a social network where you deal with a file containing users with a list of friends. Suppose the users are: A,B,C, and D. Then the file format can be as follows: 
 ```
 A [B,C,D,E]
 B [A,D,E]
@@ -144,14 +154,15 @@ C [A]
 ```
 Your task is to create a MapReduce job that will return friends in common between two users:
 ```
-A B [D]
-B C []
+A B [D,E]
+B C [A]
 ```
 3. Implement `SELECT * FROM <table> WHERE <condition>` with MapReduce.
 4. Implement `SELECT MAX(<field>) FROM <table> GROUP BY <field>` with MapReduce.
-5. One method for computing Pi (even though not the most efficient) generates a number of points in a square with side = 2. Suppose a circle with radius 1 is inscribed into the square and out of 100 points generated, 75 lay on the circle. Then, `4*75/10 ~= 3` approximates Pi. 
+5. Implement inner join between two tables with MapReduce.
+6. One method for computing Pi (even though not the most efficient) generates a number of points in a square with side = 2. Suppose a circle with radius 1 is inscribed into the square and out of 100 points generated, 75 lay on the circle. Then, `4*75/10 ~= 3` approximates Pi. 
 Write MapReduce code that implements the method. Hint: make mappers generate the points and reducer count the ratio. 
-6. Write MapReduce code to implement matrix multiplication.
+7. Write MapReduce code to implement matrix multiplication.
 
 
 
