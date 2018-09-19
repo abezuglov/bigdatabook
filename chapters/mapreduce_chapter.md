@@ -23,12 +23,11 @@ import sys
 import re
 
 for line in sys.stdin:
-    line = line.strip()
     words = re.split("\W+",line)
     for word in words:
+	word = word.lower()
 	if word != '':
-		word = word.lower()
-        	print('%s\t1'%word)
+        	print("%s\t%d"%(word,1))
 ```
 
 Reducer.py
@@ -59,7 +58,7 @@ One last comment before running MapReduce on Hadoop. The word count is in fact a
 Now, finally, let us run our word count code on Hadoop. If HDFS in your system is still empty, go ahead and copy (`-copyFromLocal`) shakespeare.txt file, because it will be needed. Since Hadoop uses Java natively, running mapper and reducer in other languages is referred to as `streaming`. So, below is one example of streaming that does a half of the task, i.e. the mapping:
 
 ```console
-yarn jar /opt/hadoop/hadoop-streaming.jar \
+$ yarn jar /opt/hadoop/hadoop-streaming.jar \
 -files mapper.py \
 -mapper 'python mapper.py' \
 -numReduceTasks 0 \
@@ -87,7 +86,6 @@ if random.randint(0,10) > 3:
 for line in sys.stdin:
     line = line.strip()
     words = re.split("\W+",line)
-    #words = line.strip().split(' ')
     for word in words:
         word = word.lower()
         print('%s\t1'%word)
@@ -96,8 +94,8 @@ for line in sys.stdin:
 Do not forget to delete the outputs of the previous job with `-rm -r -f <hdfs_dir>`. The command to re-run the job will be exactly as before:
 
 ```console
-hdfs dfs -rm -r -f wordcount
-yarn jar /opt/hadoop/hadoop-streaming.jar \
+$ hdfs dfs -rm -r -f wordcount
+$ yarn jar /opt/hadoop/hadoop-streaming.jar \
 -files mapper.py \
 -mapper 'python mapper.py' \
 -numReduceTasks 0 \
@@ -115,9 +113,8 @@ So, at the end of the job, the total number of mappers launched was 3, where one
 In order to add the reducer, its name has to appear in the `-files` and at `-reducer`. Besides, the number of reduce tasks `-numReduceTasks` has to be greater than zero. If this is the only MapReduce task, the number of the output files (excluding `_SUCCESS`) will match the number of the reducers. 
 
 ```console
-hdfs dfs -rm -r -f wordcount
-
-yarn jar /opt/hadoop/hadoop-streaming.jar \
+$ hdfs dfs -rm -r -f wordcount
+$ yarn jar /opt/hadoop/hadoop-streaming.jar \
 -files mapper.py,reducer.py \
 -mapper 'python mapper.py' \
 -reducer 'python reducer.py' \
@@ -128,13 +125,62 @@ yarn jar /opt/hadoop/hadoop-streaming.jar \
 
 After it finishes, the result is available in `wordcount/part-00000`:
 ```console
-hdfs dfs -cat wordcount/part-00000 | head
+$ hdfs dfs -cat wordcount/part-00000 | head
 ```
 
-## Passing Files to the nodes
-Sometimes we might need to pass additional data files to the mapper and/or reducer. One example can be the word count problem, where the words are not in the stop list. The stop list can be a file that would have to be passed over to all the nodes. To make sure this happens, we need to list this file at `-files` and then it will be accessible. 
+## Passing Files to the Nodes, a.k.a. Distributed Cache
+While processing inputs, some MapReduce problems will need additional data. One example can be a word count task that skips the most common English words as non-informative. Suppose the list of such words is contained in a local file `stopwords.txt`[^stop_words_DFS]. Then the rest is a simple algorithmic task, where the mapper will have to pass through each word, check if the word is not in the stop words list and output the word. The portion of the code responsible for opening the file may look like this:
+```python
+...
+def readfile(filepath):
+	with open(filepath,'r') as f:
+		words = f.read().split('\n')
+		return words
+...
+	if word not in stop_words:
+		# output <key,value>
+...
+```
+However, the issue here is that both the mapper and reducer run at the `nodes` and not at the client system. Since `stopwords.txt` is missing at the nodes, the mappers will fail. To explicitly forward the file to the nodes, its name has to appear in the `-files` while starting the task:
+```console
+$ yarn jar /opt/hadoop/hadoop-streaming.jar \
+-files mapper.py,reducer.py,stopwords.txt \
+-mapper 'python mapper.py' \
+-reducer 'python reducer.py' \
+-numReduceTasks 1 \
+-input texts/shakespeare.txt \
+-output wordcount
+```
+Now, can mapper or reducer open files on the nodes for writing? Whether Hadoop allows this operation or not, it is not a good practice, since it makes mapper and/or reducer non-deterministic. In presence of failures, MapReduce can only guarantee repeatable results if both mapper and reducer return the same outputs for the same inputs, i.e. be deterministic.
+
+In case MapReduce job needs multiple files, or the files get large, they can be sent as an archive. To illustrate this, let us analyze the first names that Sir William Shakespeare had used in his sonnets. Let us download the U.S. Census list of the first names[^first_names_url], save it locally with `curl <url> > first-names.txt`, and compress using `tar -czf <archive_name> <file(s)>`. 
+```console
+$ tar -czf first-names.tar first-names.txt
+```
+
+The file opening in the mapper will change to this:
+```python
+...
+first_names = openfile('first-names.tar/first-names.txt')
+...
+```
+
+... and the job will start with `-archives` parameter:
+```console
+$ yarn jar /opt/hadoop/hadoop-streaming.jar \
+-files mapper.py,reducer.py \
+-archives first-names.tar \
+-mapper 'python mapper.py' \
+-reducer 'python reducer.py' \
+-numReduceTasks 1 \
+-input texts/shakespeare.txt \
+-output wordcount
+```
+
+
 
 ## Review Questions
+* Can a mapper (or a reducer) create a file on the node to store temporary computations?
 
 ## Exercises
 1. Use MapReduce to count the number of words of each length in text. Example output:
@@ -163,6 +209,10 @@ B C [A]
 6. One method for computing Pi (even though not the most efficient) generates a number of points in a square with side = 2. Suppose a circle with radius 1 is inscribed into the square and out of 100 points generated, 75 lay on the circle. Then, `4*75/10 ~= 3` approximates Pi. 
 Write MapReduce code that implements the method. Hint: make mappers generate the points and reducer count the ratio. 
 7. Write MapReduce code to implement matrix multiplication.
+
+[^first_names_url]:http://deron.meranda.us/data/census-derived-all-first.txt
+[^stop_words_DFS]: For this application, there is no need to place it on DFS for two reasons: (1) the file is not large and (2) it will not help with data locality, since the file will reside on a single node. 
+
 
 
 
