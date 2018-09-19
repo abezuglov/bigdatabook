@@ -47,7 +47,7 @@ Here, apart from the self-explanatory 'run' command, parameter `-it` specifies t
 
 ![DATA201_start](images/figures/docker_data201_start.png)
 
-While the container is running, open your web browser and go to `http://localhost:8888`. This will open the Jupyter notebook running on the container machine. 
+While the container is running, open your web browser and go to `http://localhost:8888`. This will open the Jupyter notebook connected to the container machine. 
 
 ![DATA201_browser](images/figures/docker_data201_browser.png)
 
@@ -55,21 +55,23 @@ Besides, link `http://localhost:50070` will bring up the namenode information pa
 
 ![DATA201_namenode](images/figures/docker_data201_namenode_info.png)
 
-To stop and exit from the container, use `Ctrl-C`. Note that unless you remove `--rm` parameter when starting, the files and notebooks in the container will not get saved.
+To detach from the terminal window, but keep everything running, use `Ctrl-p`, `Ctrl-q`, and close the window. The container can also be paused/unpaused with `docker pause <container>` and `docker unpause <container>`.
+
+Finally, to stop and exit from the container, use `Ctrl-C`. Note that unless you remove `--rm` parameter when starting, the files and notebooks in the container will not get saved.
 
 ### Standalone Hadoop installation
-Installing Hadoop without using Docker containers is usually not a problem. It requires installation of Java (jdk) and the Hadoop itself. The step-by-step configuration details can be found online.[^Hadoop_install_Edureka] 
+Docker containers significantly reduce time to install and setup Hadoop. However, even without containers, its installation is straightforward and a step-by-step configuration details can be found online.[^Hadoop_install_Edureka] 
 
-While Hadoop is running in standalone mode, its instances are listening on the 9xxx ports of the host computer. The exact port numbers may depend on Hadoop configuration. Use `netstat -a` to get an idea of what ports are open. If you follow the Hadoop installation through Edureka, the ports are:
+While Hadoop is running in standalone mode, its instances are listening on the 9xxx ports of the host computer. The exact port numbers may depend on Hadoop configuration and can be found by using `netstat -a`. If you follow the Hadoop installation through Edureka, the ports are:
 
 * Namenode: `http://localhost:9870`
 * Secondary Namenode: `http://localhost:9868`
 * DataNode: `http://localhost:9866`
 
+Note that the procedure above installs and setups Hadoop itself. However, MapReduce and yarn are not yet configured. 
+
 ## Interacting with HDFS
-
-If everything is running as it should, you can interact with Hadoop and its DFS through the notebooks or by opening a new terminal window in Jupyter. The general syntax to run commands on HDFS is:
-
+When everything is configured and running, HDFS can be reached through a new terminal window in Jupyter. Alternatively, Jupyter notebook cells also allow running bash commands with `%%bash <command>`. Various HDFS functions are available by running:
 ```console
 # hdfs dfs -<command>
 ```

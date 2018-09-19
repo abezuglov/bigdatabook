@@ -128,6 +128,12 @@ After it finishes, the result is available in `wordcount/part-00000`:
 $ hdfs dfs -cat wordcount/part-00000 | head
 ```
 
+## Debugging
+By now you have likely tried a few MapReduce examples and perhaps not all of the successfully finished. How can one debug this code? It may get difficult for at least two reasons: (1) when a mapper or reducer fail, Hadoop will still try to re-run them and (2) the error messages are not too informative. One suggestion here is to first try the code using the format:
+```console
+$ cat <input_file> | python mapper.py | sort | python reducer.py
+```
+
 ## Passing Files to the Nodes, a.k.a. Distributed Cache
 While processing inputs, some MapReduce problems will need additional data. One example can be a word count task that skips the most common English words as non-informative. Suppose the list of such words is contained in a local file `stopwords.txt`[^stop_words_DFS]. Then the rest is a simple algorithmic task, where the mapper will have to pass through each word, check if the word is not in the stop words list and output the word. The portion of the code responsible for opening the file may look like this:
 ```python
@@ -177,7 +183,17 @@ $ yarn jar /opt/hadoop/hadoop-streaming.jar \
 -output wordcount
 ```
 
-
+### Unicode
+Whenever the text data is in Unicode, make sure that you correctly process it. Below are a few operators to set default encoding to Unicode, to convert a string, and to split the string using `re`.
+```python
+...
+import sys
+reload(sys)
+sys.setdefaultencoding('utf-8') 
+...
+line = unicode(line) # convert line to unicode
+words = re.split("\W+",text, flags=re.UNICODE)
+```
 
 ## Review Questions
 * Can a mapper (or a reducer) create a file on the node to store temporary computations?
