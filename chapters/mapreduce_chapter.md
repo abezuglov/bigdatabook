@@ -195,6 +195,137 @@ line = unicode(line) # convert line to unicode
 words = re.split("\W+",text, flags=re.UNICODE)
 ```
 
+##Environment Variables and Counters
+Hadoop creates a few useful environment variables available to the client code and it also allows the code to create their own variables. Boolean variable `mapred_task_is_map` allows checking if the current task is a mapper `"true"` or a reducer `"false"` and it can be used as follows:
+```python
+if os.environ['mapred_task_is_map'] == 'true':
+	# mapper's code
+else:
+	# reducer's code
+```
+As the above example illustrates, it can be used to create a single code to work as both the mapper and reducer. Other environment variables available are: `mapreduce_map_input_file`, `mapreduce_map_input_start`,`mapreduce_map_input_length`, etc.
+
+Hadoop will also create new environment variables if they are added to the yarn command. For instance, the command below will add `new_var` variable accessible via `os.environ["new_var"]`:
+```console
+$ yarn jar /opt/hadoop/hadoop-streaming.jar \
+-D new_var = "new_value" \
+...
+```
+
+### Calculating Pi with MapReduce
+
+To illustrate the use of environment variables and parameters, let us calculate Pi with MapReduce. The method to calculate Pi will not be too efficient, however, it is easy to implement and fits the MapReduce model quite well. The idea behind the method is to find a ratio of points inside and outside of a circle insribed into a square. The mapper will generate a number of random points and output if the point is inside `1` or outside `0` of the circle. The reducer will find the ratio and output Pi. Below is the program that serves as both the mapper and reducer:
+```python
+import sys
+import random
+import re
+import os
+
+reload(sys)
+
+num_points = 100 # default number of points
+try:
+	# attempt to get the number from parameters
+	num_points = int(os.environ['num_points']) 
+except:
+	pass
+
+if os.environ['mapred_task_is_map'] == 'true': # check if the job is a mapper
+	for line in sys.stdin: #ignore whatever is in the input
+		pass
+
+	#generate points
+	for i in range(num_points):
+		x = random.uniform(0,1)
+		y = random.uniform(0,1)
+		if x*x+y*y < 1.0:
+			sys.stderr.write("reporter:counter:Personal Counters,inside,1\n")
+			print("1")
+		else:
+			sys.stderr.write("reporter:counter:Personal Counters,outside,1\n")
+			print("0")
+else: # The job is the reducer
+	_sum = 0
+	for line in sys.stdin:
+        	_sum += int(line)
+	pi = _sum*4.0/num_points
+	print("Pi:%1.4f"%pi)
+```
+
+This MR job can run as normal, which will generate 100 points, or by sending the number of points as an environment variable on the nodes: `-D num_points=<>`. Note that in Hadoop streaming, `-input` is a mandatory parameter and cannot be omitted. This is a limitation of the example above for at least two reasons. First, in order to run the example, an empty file has to be created on HDFS (`hdfs dfs -touchz empty`); and second, there will be a limited amount of mappers, since the input data exists on only three HDFS nodes by default. Nethertheless, the example still works to illustrate environment variables and counters.
+```console
+yarn jar /opt/hadoop/hadoop-streaming.jar \
+-D num_points=10000 \
+-files mapper_params.py \
+-mapper 'python mapper_params.py' \
+-reducer 'python mapper_params.py' \
+-numReduceTasks 1 \
+-input empty \
+-output pi
+```
+
+The counters can be found in the output, under personal counters:
+![MR_counters_output](/images/figures/MR_counters_output.png)
+
+### Data Aggregation
+In Structured Query Language (SQL), data can be aggregated by a field or combination of fields. For instance, consider a data file below:
+![Seattle_weather](/images/figures/road_weather_stations_seattle.png)
+
+The file contains road and air temperature measurements at several locations around Seattle, WA. The task is to calculate average temperature across the locations, or aggregate by the date/time field. 
+
+In MapReduce implementation, the mapper will scan through the file and use the date/time as the key, while leaving the combination of other fields as the value. The reducer will scan through the key-value pairs and aggregate the values pertaining to the same key, which is the date/time. Below is the sample code:
+
+Mapper:
+```python
+import sys
+import random
+import re
+
+for line in sys.stdin:
+    l = line.split(',')
+    if l[0] != 'StationName':
+        loc, coord_lat, coord_lon, date_time, rec_id, road_temp,air_temp = l
+        d = ','.join([loc,road_temp,air_temp.strip()])
+        print("%s\t%s"%(date_time,d))
+```
+
+Reducer:
+```python
+import sys
+
+cur_date_time = ""
+avg_road_temp = 0
+avg_air_temp = 0
+count = 0
+
+for line in sys.stdin:
+    date_time, data = line.strip().split('\t')
+    if date_time == cur_date_time:
+        avg_road_temp += float(data.split(',')[1])
+        avg_air_temp += float(data.split(',')[2])
+        count += 1
+    else:
+        if cur_date_time != "":
+            print("%s\t%2.2f\t%2.2f\t%d"%(cur_date_time,
+		avg_road_temp/count,avg_air_temp/count,count))
+        cur_date_time = date_time
+        avg_road_temp = float(data.split(',')[1])
+        avg_air_temp = float(data.split(',')[2])
+        count = 1
+            
+print("%s\t%2.2f\t%2.2f\t%d"%(cur_date_time,
+		avg_road_temp/count,avg_air_temp/count,count))
+```
+
+The output of this MR job should be similar to the image below, where the first column is the date/time, then the air and road temperature, and the last column contains the number of stations aggregated:
+![Seattle_weather](/images/figures/road_weather_seattle_agg.png)
+
+### Table Joins
+Another SQL-like feature that is possible with MapReduce is a join of two (or potentially more) tables. SQL operates with several joins such as inner, left or right outer joins, and may be others. Below is an example of running an inner join between two tables containing county population. The first table has county id, and its name, while the second table has the history of its population. 
+```python
+
+```
+
 ## Review Questions
 * Can a mapper (or a reducer) create a file on the node to store temporary computations?
 
@@ -222,7 +353,7 @@ B C [A]
 3. Implement `SELECT * FROM <table> WHERE <condition>` with MapReduce.
 4. Implement `SELECT MAX(<field>) FROM <table> GROUP BY <field>` with MapReduce.
 5. Implement inner join between two tables with MapReduce.
-6. One method for computing Pi (even though not the most efficient) generates a number of points in a square with side = 2. Suppose a circle with radius 1 is inscribed into the square and out of 100 points generated, 75 lay on the circle. Then, `4*75/10 ~= 3` approximates Pi. 
+6. One method for computing Pi (even though not the most efficient) generates a number of points in a square with side = 2. Suppose a circle with radius 1 is inscribed into the square and out of 100 points generated, 75 lay on the circle. Then, `4*75/10 = 3` approximates Pi. 
 Write MapReduce code that implements the method. Hint: make mappers generate the points and reducer count the ratio. 
 7. Write MapReduce code to implement matrix multiplication.
 
