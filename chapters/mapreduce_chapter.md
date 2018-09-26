@@ -323,7 +323,7 @@ The output of this MR job should be similar to the image below, where the first 
 ### Table Joins
 Another SQL-like feature that is possible with MapReduce is a join of two (or potentially more) tables. SQL operates with several joins such as inner, left or right outer joins, and may be others. Below is an example of running an inner join between two tables containing county population. The first table has county id, and its name, while the second table has the history of its population. 
 ```python
-
+TBD
 ```
 
 ## Review Questions
