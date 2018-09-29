@@ -4,7 +4,7 @@ maketitle
 tableofcontents
 preface.md
 mainmatter:
-a_chapter.md
+intro_chapter.md
 hdfs_chapter.md
 mapreduce_chapter.md
 hadoop_optimized.md
