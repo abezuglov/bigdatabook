@@ -1,8 +1,0 @@
-# What is Big Data (and what is not)
-\label{cha:what_is_big_data}
-
-Few people have not heard of Big Data. It seems to be everywhere a cell phone to a bread toaster. However, similar to other terms these days[^AI], the Big Data meaning is heavily overloaded. So, what is Big Data (and what is not)?
-
-One way to approach this is by considering what sources of data are available. The first that comes to mind is a smartphone that most people use every day. In fact, according to https://www.statista.com/statistics/274774/forecast-of-mobile-phone-users-worldwide/, approximately 4.15 billion cell phones are in use in 2018. Such a smartphone will have around 14 sensors like a gyroscope, GPS, barometer, magnetometer and others that produce realtime data. This is naturally similar to other devices equipped with sensors that collect and broadcast data. When these devices use Internet for data collection and analysis, they are referred to as the Internet of Things (IoT).
-
-[^AI]: Artificial Intelligence is one of the examples. It is often confused with Artificial Neural Networks and Machine Learning.

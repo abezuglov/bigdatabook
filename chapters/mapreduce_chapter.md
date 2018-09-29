@@ -321,13 +321,71 @@ The output of this MR job should be similar to the image below, where the first 
 ![Seattle_weather](/images/figures/road_weather_seattle_agg.png)
 
 ### Table Joins
-Another SQL-like feature that is possible with MapReduce is a join of two (or potentially more) tables. SQL operates with several joins such as inner, left or right outer joins, and may be others. Below is an example of running an inner join between two tables containing county population. The first table has county id, and its name, while the second table has the history of its population. 
+Another SQL-like feature that is possible with MapReduce is a join of two (or potentially more) tables. SQL defines several types of table joins such as inner, left or right outer joins, and may be others. Below is an example of running an inner join between two CSV data files pertaining to population in the state of Iowa. The first file represents a table with a summary of county information, such as a county id, its name, and fips code. The second is the history of county population containing county id, year, and population. The join is done on the county id field, so that the result will contain both the county information and its population for each year.
+
+The trick here is that the job will receive both files and the mapper must extract the county id and use it as the key. The value is the remainder of the data fields plus the file name where the data comes from. The reducer receives the keys already sorted, so that all information pertaining to one county is already put together to the sequence of key-value pairs. However, there is no guarantee the key-value pairs from which file will come first. Below is one example of mapper and reducer to do the inner join:
 ```python
-TBD
+import sys
+import random
+import re
+import os
+
+file_name = 'missing_file_name'
+try:
+    file_name = str(os.environ['mapreduce_map_input_file'])
+    if 'population' in file_name:
+        file_name = 'population'
+    else:
+        file_name = 'county'
+except:
+    pass
+
+for line in sys.stdin:
+    try:
+        fields = line.strip().split(',',1) # extract county_id only
+        county_id = int(fields[0]) # intentionally fail at the first line
+        other_fields = fields[1]
+        print('%s\t%s\t%s'%(county_id,file_name,other_fields))
+    except:
+        pass
+```
+
+```python
+import sys
+
+cur_county_id = 0
+population_data = []
+county_data = ""
+
+for line in sys.stdin:
+    fields = line.strip().split('\t',2)
+    county_id, file_name = fields[0], fields[1]
+    if cur_county_id == 0:
+        cur_county_id = county_id
+        
+    if county_id != cur_county_id: # proceed to the next county
+        if county_data != "": # if county information is there
+            for population in population_data:
+                print("%s\t%s,%s"%(county_id,county_data,population))
+            county_data = ""
+        population_data = []
+        cur_county_id = county_id
+
+    fields = fields[2] 
+    if 'population' in file_name:
+        population_data.append(fields)
+    else:
+        county_data = fields
+        
+if county_data != "": # if county information is there
+            for population in population_data:
+                print("%s\t%s,%s"%(county_id,county_data,population))
+            county_data = ""
 ```
 
 ## Review Questions
 * Can a mapper (or a reducer) create a file on the node to store temporary computations?
+* How many times will Hadoop restart a failing mapper/reducer task before the job is failed?
 
 ## Exercises
 1. Use MapReduce to count the number of words of each length in text. Example output:
