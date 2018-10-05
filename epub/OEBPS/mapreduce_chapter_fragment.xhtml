@@ -1,0 +1,377 @@
+<?xml version="1.0" encoding="utf-8"?>
+        <!DOCTYPE html>
+
+        <html xmlns="http://www.w3.org/1999/xhtml">
+        <head>
+          <title>Chapter 3</title>
+          <link rel="stylesheet" href="styles/pygments.css" type="text/css" />
+          <link rel="stylesheet" href="styles/softcover.css" type="text/css" />
+          <link rel="stylesheet" href="styles/epub.css" type="text/css" />
+          <link rel="stylesheet" href="styles/custom.css" type="text/css"/>
+          <link rel="stylesheet" href="styles/custom_epub.css" type="text/css"/>
+          <link rel="stylesheet" type="application/vnd.adobe-page-template+xml" href="styles/page-template.xpgt" />
+        </head>
+
+        <body>
+          <div id="cid10" class="chapter"><h1><a href="mapreduce_chapter_fragment.xhtml#cid10" class="heading hyperref"><span class="number">Chapter 3 </span>MapReduce</a></h1>
+</div><div id="cid11" class="section"><h2><a href="mapreduce_chapter_fragment.xhtml#cid11" class="heading hyperref"><span class="number">3.1 </span>Introduction</a></h2>
+<p class="noindent">MapReduce is the essential framework to process Big Data at least today.<span class="intersentencespace"></span> And, of course, the author will eventually add more text here… Just be patient…</p>
+</div><div id="cid12" class="section"><h2><a href="mapreduce_chapter_fragment.xhtml#cid12" class="heading hyperref"><span class="number">3.2 </span>MapReduce without MapReduce or a cluster</a></h2>
+<p class="noindent">It is actually possible to illustrate the work of MapReduce without having Hadoop or any other cluster with just the command line interface.<span class="intersentencespace"></span> We have earlier mentioned the Hello World problem in Big Data, which is Word Count.<span class="intersentencespace"></span> The task is to count the number of occurrences of each word in a potentially large text file.<span class="intersentencespace"></span> What is the solution to this problem in the MapReduce way?</p>
+<p>It is actually quite simple.<span class="intersentencespace"></span> The file contents is sent to a program called <code>mapper</code> that splits the text into words and emits strings like <code>"&lt;word_1&gt; 1"</code>,<code>"&lt;word_2&gt; 1"</code>, and so on.<span class="intersentencespace"></span> Occasionally, the words will repeat (the text is long), however the mapper still outputs <code>1</code> for each word no matter how many times it has appeared in the text.</p>
+<p>At the next step, MapReduce framework rearranges the strings so that the similar words are put together.<span class="intersentencespace"></span> In CLI, this can be simulated by calling function <code>sort</code>.<span class="intersentencespace"></span> At this time, the list of strings may look like this: <code>"&lt;word_1&gt; 1"</code>,<code>"&lt;word_1&gt; 1"</code>,<code>"&lt;word_2&gt; 1"</code>,…,<code>"&lt;word_n&gt; 1"</code>.</p>
+<p>The rearranged strings will get to the input of a <code>reducer</code> program that adds up all the <code>1</code> for each word and prints the word counts: ,<code>"&lt;word_1&gt; n_1"</code>, ,<code>"&lt;word_2&gt; n_2"</code>.</p>
+<p>Below is an example that can run on Linux:
+</p><div class="code"><div class="highlight"><pre><span></span><span class="gp">$</span> cat shakespeare.txt <span class="p">|</span> python mapper.py <span class="p">|</span> sort <span class="p">|</span> python reducer.py
+</pre></div></div>
+<p>Mapper.py
+</p><div class="code"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">re</span>
+
+<span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdin</span><span class="p">:</span>
+    <span class="n">words</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"\W+"</span><span class="p">,</span><span class="n">line</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">word</span> <span class="ow">in</span> <span class="n">words</span><span class="p">:</span>
+	<span class="n">word</span> <span class="o">=</span> <span class="n">word</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+	<span class="k">if</span> <span class="n">word</span> <span class="o">!=</span> <span class="s1">''</span><span class="p">:</span>
+        	<span class="k">print</span><span class="p">(</span><span class="s2">"</span><span class="si">%s</span><span class="se">\t</span><span class="si">%d</span><span class="s2">"</span><span class="o">%</span><span class="p">(</span><span class="n">word</span><span class="p">,</span><span class="mi">1</span><span class="p">))</span>
+</pre></div></div>
+<p>Reducer.py
+</p><div class="code"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">sys</span>
+
+<span class="n">cur_word</span> <span class="o">=</span> <span class="s2">""</span>
+<span class="n">cur_count</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdin</span><span class="p">:</span>
+    <span class="n">word</span><span class="p">,</span> <span class="n">count</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">'</span><span class="se">\t</span><span class="s1">'</span><span class="p">)</span>
+    <span class="n">count</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">count</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">word</span> <span class="o">==</span> <span class="n">cur_word</span><span class="p">:</span>
+        <span class="n">cur_count</span> <span class="o">+=</span> <span class="n">count</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">cur_word</span> <span class="o">!=</span> <span class="s2">""</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s2">"</span><span class="si">%s</span><span class="se">\t</span><span class="si">%d</span><span class="s2">"</span><span class="o">%</span><span class="p">(</span><span class="n">cur_word</span><span class="p">,</span><span class="n">cur_count</span><span class="p">))</span>
+        <span class="n">cur_word</span> <span class="o">=</span> <span class="n">word</span>
+        <span class="n">cur_count</span> <span class="o">=</span> <span class="n">count</span>
+            
+<span class="k">print</span><span class="p">(</span><span class="s2">"</span><span class="si">%s</span><span class="se">\t</span><span class="si">%d</span><span class="s2">"</span><span class="o">%</span><span class="p">(</span><span class="n">cur_word</span><span class="p">,</span><span class="n">cur_count</span><span class="p">))</span>
+</pre></div></div>
+<p>What are the benefits of this code organization, i.e.<span class="intersentencespace"></span> splitting the processing into mapper and reducer?<span class="intersentencespace"></span> First, in case of large text files, the system can run multiple mappers simultaneously.<span class="intersentencespace"></span> The mappers can work on those nodes that contain file chunks and send the outputs to the common <code>data stream</code>.<span class="intersentencespace"></span> The reducers can also work simultaneously, as long as one word is not split between two or more reducers.<span class="intersentencespace"></span> However, Hadoop framework guarantees that this will not occur.<span class="intersentencespace"></span> Even if it does, another series of reducers will fix it.</p>
+<p>One last comment before running MapReduce on Hadoop.<span class="intersentencespace"></span> The word count is in fact a toy problem, which purpose is only to the general mechanism of the framework.<span class="intersentencespace"></span> For more complex problems, multiple mapper-reducers can be stacked so that the output of reducer n is the input of mapper n+1.</p>
+</div><div id="cid13" class="section"><h2><a href="mapreduce_chapter_fragment.xhtml#cid13" class="heading hyperref"><span class="number">3.3 </span>MapReduce on Hadoop</a></h2>
+<p class="noindent">Now, finally, let us run our word count code on Hadoop.<span class="intersentencespace"></span> If HDFS in your system is still empty, go ahead and copy (<code>-copyFromLocal</code>) shakespeare.txt file, because it will be needed.<span class="intersentencespace"></span> Since Hadoop uses Java natively, running mapper and reducer in other languages is referred to as <code>streaming</code>.<span class="intersentencespace"></span> So, below is one example of streaming that does a half of the task, i.e.<span class="intersentencespace"></span> the mapping:</p>
+<div class="code"><div class="highlight"><pre><span></span><span class="gp">$</span> yarn jar /opt/hadoop/hadoop-streaming.jar <span class="se">\</span>
+-files mapper.py <span class="se">\</span>
+-mapper <span class="s1">'python mapper.py'</span> <span class="se">\</span>
+-numReduceTasks <span class="m">0</span> <span class="se">\</span>
+-input texts/shakespeare.txt <span class="se">\</span>
+-output wordcount
+</pre></div></div>
+<p>The image below shows a portion of the verbose output by Hadoop.<span class="intersentencespace"></span> Among other things, it shows the progress of the mappers (and reducers, once we add them).<span class="intersentencespace"></span> Even though in this example Hadoop runs in pseudo distributed mode, the data is still split between the two mappers.</p>
+<div class="graphics image"><img src="/images/figures/hadoop_streaming_output_top.png" alt="/images/figures/hadoop_streaming_output_top" /></div>
+<p>Per our request, Hadoop used wordcount as the output directory.<span class="intersentencespace"></span> The directory contains three files.<span class="intersentencespace"></span> The first with the self-illustrating name indicates that the job has finished succesfully.<span class="intersentencespace"></span> The other two files are the outputs by the two mappers.<span class="intersentencespace"></span> The figure below also illustrates the first few lines in one of the files:</p>
+<div class="graphics image"><img src="/images/figures/hadoop_streaming_output_dir.png" alt="/images/figures/hadoop_streaming_output_dir" /></div>
+<div id="uid27" class="subsection"><h3><a href="mapreduce_chapter_fragment.xhtml#uid27" class="heading hyperref"><span class="number">3.3.1 </span>Unreliable components</a></h3>
+<p class="noindent">Now that we see how Hadoop manages the properly operating components, let us simulate a node failure.<span class="intersentencespace"></span> Since when a node fails, all the jobs, which are running on the node will fail, this can be done by randomly failing a mapper.<span class="intersentencespace"></span> Let us randomly through an exception in the mapper, so that out of the two mappers may be one will fail.</p>
+<div class="code"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">re</span>
+
+<span class="k">if</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">10</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">"Bang!!!"</span><span class="p">)</span>
+    
+<span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdin</span><span class="p">:</span>
+    <span class="n">line</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="n">words</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"\W+"</span><span class="p">,</span><span class="n">line</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">word</span> <span class="ow">in</span> <span class="n">words</span><span class="p">:</span>
+        <span class="n">word</span> <span class="o">=</span> <span class="n">word</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="k">print</span><span class="p">(</span><span class="s1">'</span><span class="si">%s</span><span class="se">\t</span><span class="s1">1'</span><span class="o">%</span><span class="n">word</span><span class="p">)</span>
+</pre></div></div>
+<p>Do not forget to delete the outputs of the previous job with <code>-rm -r -f &lt;hdfs_dir&gt;</code>.<span class="intersentencespace"></span> The command to re-run the job will be exactly as before:</p>
+<div class="code"><div class="highlight"><pre><span></span><span class="gp">$</span> hdfs dfs -rm -r -f wordcount
+<span class="gp">$</span> yarn jar /opt/hadoop/hadoop-streaming.jar <span class="se">\</span>
+-files mapper.py <span class="se">\</span>
+-mapper <span class="s1">'python mapper.py'</span> <span class="se">\</span>
+-numReduceTasks <span class="m">0</span> <span class="se">\</span>
+-input texts/shakespeare.txt <span class="se">\</span>
+-output wordcount
+</pre></div></div>
+<p>Now we can see that during the run, one of the mappers had crashed.<span class="intersentencespace"></span> However, Hadoop started another mapper and recovered:</p>
+<div class="graphics image"><img src="/images/figures/hadoop_output_failed_mapper.png" alt="/images/figures/hadoop_output_failed_mapper" /></div>
+<p>So, at the end of the job, the total number of mappers launched was 3, where one mapper had failed.</p>
+<div class="graphics image"><img src="/images/figures/hadoop_output_failed_mapper_counters.png" alt="/images/figures/hadoop_output_failed_mapper_counters" /></div>
+</div>
+<div id="uid28" class="subsection"><h3><a href="mapreduce_chapter_fragment.xhtml#uid28" class="heading hyperref"><span class="number">3.3.2 </span>Adding Reducer</a></h3>
+<p class="noindent">In order to add the reducer, its name has to appear in the <code>-files</code> and at <code>-reducer</code>.<span class="intersentencespace"></span> Besides, the number of reduce tasks <code>-numReduceTasks</code> has to be greater than zero.<span class="intersentencespace"></span> If this is the only MapReduce task, the number of the output files (excluding <code>_SUCCESS</code>) will match the number of the reducers.</p>
+<div class="code"><div class="highlight"><pre><span></span><span class="gp">$</span> hdfs dfs -rm -r -f wordcount
+<span class="gp">$</span> yarn jar /opt/hadoop/hadoop-streaming.jar <span class="se">\</span>
+-files mapper.py,reducer.py <span class="se">\</span>
+-mapper <span class="s1">'python mapper.py'</span> <span class="se">\</span>
+-reducer <span class="s1">'python reducer.py'</span> <span class="se">\</span>
+-numReduceTasks <span class="m">1</span> <span class="se">\</span>
+-input texts/shakespeare.txt <span class="se">\</span>
+-output wordcount
+</pre></div></div>
+<p>After it finishes, the result is available in <code>wordcount/part-00000</code>:
+</p><div class="code"><div class="highlight"><pre><span></span><span class="gp">$</span> hdfs dfs -cat wordcount/part-00000 <span class="p">|</span> head
+</pre></div></div>
+</div></div><div id="cid14" class="section"><h2><a href="mapreduce_chapter_fragment.xhtml#cid14" class="heading hyperref"><span class="number">3.4 </span>Debugging</a></h2>
+<p class="noindent">By now you have likely tried a few MapReduce examples and perhaps not all of the successfully finished.<span class="intersentencespace"></span> How can one debug this code?<span class="intersentencespace"></span> It may get difficult for at least two reasons: (1) when a mapper or reducer fail, Hadoop will still try to re-run them and (2) the error messages are not too informative.<span class="intersentencespace"></span> One suggestion here is to first try the code using the format:
+</p><div class="code"><div class="highlight"><pre><span></span><span class="gp">$</span> cat &lt;input_file&gt; <span class="p">|</span> python mapper.py <span class="p">|</span> sort <span class="p">|</span> python reducer.py
+</pre></div></div>
+</div><div id="cid15" class="section"><h2><a href="mapreduce_chapter_fragment.xhtml#cid15" class="heading hyperref"><span class="number">3.5 </span>Passing Files to the Nodes, a.k.a.<span class="intersentencespace"></span> Distributed Cache</a></h2>
+<p class="noindent">While processing inputs, some MapReduce problems will need additional data.<span class="intersentencespace"></span> One example can be a word count task that skips the most common English words as non-informative.<span class="intersentencespace"></span> Suppose the list of such words is contained in a local file <code>stopwords.txt</code><sup id="cha-3_footnote-ref-1" class="footnote"><a href="#cha-3_footnote-1">1</a></sup>.<span class="intersentencespace"></span> Then the rest is a simple algorithmic task, where the mapper will have to pass through each word, check if the word is not in the stop words list and output the word.<span class="intersentencespace"></span> The portion of the code responsible for opening the file may look like this:
+</p><div class="code"><div class="highlight"><pre><span></span><span class="o">...</span>
+<span class="k">def</span> <span class="nf">readfile</span><span class="p">(</span><span class="n">filepath</span><span class="p">):</span>
+	<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span><span class="s1">'r'</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+		<span class="n">words</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">'</span><span class="se">\n</span><span class="s1">'</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">words</span>
+<span class="o">...</span>
+	<span class="k">if</span> <span class="n">word</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">stop_words</span><span class="p">:</span>
+		<span class="c1"># output &lt;key,value&gt;</span>
+<span class="o">...</span>
+</pre></div></div>
+<p>However, the issue here is that both the mapper and reducer run at the <code>nodes</code> and not at the client system.<span class="intersentencespace"></span> Since <code>stopwords.txt</code> is missing at the nodes, the mappers will fail.<span class="intersentencespace"></span> To explicitly forward the file to the nodes, its name has to appear in the <code>-files</code> while starting the task:
+</p><div class="code"><div class="highlight"><pre><span></span><span class="gp">$</span> yarn jar /opt/hadoop/hadoop-streaming.jar <span class="se">\</span>
+-files mapper.py,reducer.py,stopwords.txt <span class="se">\</span>
+-mapper <span class="s1">'python mapper.py'</span> <span class="se">\</span>
+-reducer <span class="s1">'python reducer.py'</span> <span class="se">\</span>
+-numReduceTasks <span class="m">1</span> <span class="se">\</span>
+-input texts/shakespeare.txt <span class="se">\</span>
+-output wordcount
+</pre></div></div>
+<p>Now, can mapper or reducer open files on the nodes for writing?<span class="intersentencespace"></span> Whether Hadoop allows this operation or not, it is not a good practice, since it makes mapper and/or reducer non-deterministic.<span class="intersentencespace"></span> In presence of failures, MapReduce can only guarantee repeatable results if both mapper and reducer return the same outputs for the same inputs, i.e.<span class="intersentencespace"></span> be deterministic.</p>
+<p>In case MapReduce job needs multiple files, or the files get large, they can be sent as an archive.<span class="intersentencespace"></span> To illustrate this, let us analyze the first names that Sir William Shakespeare had used in his sonnets.<span class="intersentencespace"></span> Let us download the U.S. Census list of the first names<sup id="cha-3_footnote-ref-2" class="footnote"><a href="#cha-3_footnote-2">2</a></sup>, save it locally with <code>curl &lt;url&gt; &gt; first-names.txt</code>, and compress using <code>tar -czf &lt;archive_name&gt; &lt;file(s)&gt;</code>.<span class="intersentencespace"></span> </p><div class="code"><div class="highlight"><pre><span></span><span class="gp">$</span> tar -czf first-names.tar first-names.txt
+</pre></div></div>
+<p>The file opening in the mapper will change to this:
+</p><div class="code"><div class="highlight"><pre><span></span><span class="o">...</span>
+<span class="n">first_names</span> <span class="o">=</span> <span class="n">openfile</span><span class="p">(</span><span class="s1">'first-names.tar/first-names.txt'</span><span class="p">)</span>
+<span class="o">...</span>
+</pre></div></div>
+<p>… and the job will start with <code>-archives</code> parameter:
+</p><div class="code"><div class="highlight"><pre><span></span><span class="gp">$</span> yarn jar /opt/hadoop/hadoop-streaming.jar <span class="se">\</span>
+-files mapper.py,reducer.py <span class="se">\</span>
+-archives first-names.tar <span class="se">\</span>
+-mapper <span class="s1">'python mapper.py'</span> <span class="se">\</span>
+-reducer <span class="s1">'python reducer.py'</span> <span class="se">\</span>
+-numReduceTasks <span class="m">1</span> <span class="se">\</span>
+-input texts/shakespeare.txt <span class="se">\</span>
+-output wordcount
+</pre></div></div>
+<div id="uid31" class="subsection"><h3><a href="mapreduce_chapter_fragment.xhtml#uid31" class="heading hyperref"><span class="number">3.5.1 </span>Unicode</a></h3>
+<p class="noindent">Whenever the text data is in Unicode, make sure that you correctly process it.<span class="intersentencespace"></span> Below are a few operators to set default encoding to Unicode, to convert a string, and to split the string using <code>re</code>.<span class="intersentencespace"></span> </p><div class="code"><div class="highlight"><pre><span></span><span class="o">...</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="nb">reload</span><span class="p">(</span><span class="n">sys</span><span class="p">)</span>
+<span class="n">sys</span><span class="o">.</span><span class="n">setdefaultencoding</span><span class="p">(</span><span class="s1">'utf-8'</span><span class="p">)</span> 
+<span class="o">...</span>
+<span class="n">line</span> <span class="o">=</span> <span class="nb">unicode</span><span class="p">(</span><span class="n">line</span><span class="p">)</span> <span class="c1"># convert line to unicode</span>
+<span class="n">words</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"\W+"</span><span class="p">,</span><span class="n">text</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">UNICODE</span><span class="p">)</span>
+</pre></div></div>
+</div></div><div id="cid16" class="section"><h2><a href="mapreduce_chapter_fragment.xhtml#cid16" class="heading hyperref"><span class="number">3.6 </span>Environment Variables and Counters</a></h2>
+<p class="noindent">Hadoop creates a few useful environment variables available to the client code and it also allows the code to create their own variables.<span class="intersentencespace"></span> Boolean variable <code>mapred_task_is_map</code> allows checking if the current task is a mapper <code>"true"</code> or a reducer <code>"false"</code> and it can be used as follows:
+</p><div class="code"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">'mapred_task_is_map'</span><span class="p">]</span> <span class="o">==</span> <span class="s1">'true'</span><span class="p">:</span>
+	<span class="c1"># mapper's code</span>
+<span class="k">else</span><span class="p">:</span>
+	<span class="c1"># reducer's code</span>
+</pre></div></div>
+<p>As the above example illustrates, it can be used to create a single code to work as both the mapper and reducer.<span class="intersentencespace"></span> Other environment variables available are: <code>mapreduce_map_input_file</code>, <code>mapreduce_map_input_start</code>,<code>mapreduce_map_input_length</code>, etc.</p>
+<p>Hadoop will also create new environment variables if they are added to the yarn command.<span class="intersentencespace"></span> For instance, the command below will add <code>new_var</code> variable accessible via <code>os.environ["new_var"]</code>:
+</p><div class="code"><div class="highlight"><pre><span></span><span class="gp">$</span> yarn jar /opt/hadoop/hadoop-streaming.jar <span class="se">\</span>
+-D <span class="nv">new_var</span> <span class="o">=</span> <span class="s2">"new_value"</span> <span class="se">\</span>
+...
+</pre></div></div>
+<div id="uid32" class="subsection"><h3><a href="mapreduce_chapter_fragment.xhtml#uid32" class="heading hyperref"><span class="number">3.6.1 </span>Calculating Pi with MapReduce</a></h3>
+<p class="noindent">To illustrate the use of environment variables and parameters, let us calculate Pi with MapReduce.<span class="intersentencespace"></span> The method to calculate Pi will not be too efficient, however, it is easy to implement and fits the MapReduce model quite well.<span class="intersentencespace"></span> The idea behind the method is to find a ratio of points inside and outside of a circle insribed into a square.<span class="intersentencespace"></span> The mapper will generate a number of random points and output if the point is inside <code>1</code> or outside <code>0</code> of the circle.<span class="intersentencespace"></span> The reducer will find the ratio and output Pi.<span class="intersentencespace"></span> Below is the program that serves as both the mapper and reducer:
+</p><div class="code"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="nb">reload</span><span class="p">(</span><span class="n">sys</span><span class="p">)</span>
+
+<span class="n">num_points</span> <span class="o">=</span> <span class="mi">100</span> <span class="c1"># default number of points</span>
+<span class="k">try</span><span class="p">:</span>
+	<span class="c1"># attempt to get the number from parameters</span>
+	<span class="n">num_points</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">'num_points'</span><span class="p">])</span> 
+<span class="k">except</span><span class="p">:</span>
+	<span class="k">pass</span>
+
+<span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">'mapred_task_is_map'</span><span class="p">]</span> <span class="o">==</span> <span class="s1">'true'</span><span class="p">:</span> <span class="c1"># check if the job is a mapper</span>
+	<span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdin</span><span class="p">:</span> <span class="c1">#ignore whatever is in the input</span>
+		<span class="k">pass</span>
+
+	<span class="c1">#generate points</span>
+	<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_points</span><span class="p">):</span>
+		<span class="n">x</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+		<span class="n">y</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">x</span><span class="o">*</span><span class="n">x</span><span class="o">+</span><span class="n">y</span><span class="o">*</span><span class="n">y</span> <span class="o">&lt;</span> <span class="mf">1.0</span><span class="p">:</span>
+			<span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">"reporter:counter:Personal Counters,inside,1</span><span class="se">\n</span><span class="s2">"</span><span class="p">)</span>
+			<span class="k">print</span><span class="p">(</span><span class="s2">"1"</span><span class="p">)</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">"reporter:counter:Personal Counters,outside,1</span><span class="se">\n</span><span class="s2">"</span><span class="p">)</span>
+			<span class="k">print</span><span class="p">(</span><span class="s2">"0"</span><span class="p">)</span>
+<span class="k">else</span><span class="p">:</span> <span class="c1"># The job is the reducer</span>
+	<span class="n">_sum</span> <span class="o">=</span> <span class="mi">0</span>
+	<span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdin</span><span class="p">:</span>
+        	<span class="n">_sum</span> <span class="o">+=</span> <span class="nb">int</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+	<span class="n">pi</span> <span class="o">=</span> <span class="n">_sum</span><span class="o">*</span><span class="mf">4.0</span><span class="o">/</span><span class="n">num_points</span>
+	<span class="k">print</span><span class="p">(</span><span class="s2">"Pi:</span><span class="si">%1.4f</span><span class="s2">"</span><span class="o">%</span><span class="n">pi</span><span class="p">)</span>
+</pre></div></div>
+<p>This MR job can run as normal, which will generate 100 points, or by sending the number of points as an environment variable on the nodes: <code>-D num_points=&lt;&gt;</code>.<span class="intersentencespace"></span> Note that in Hadoop streaming, <code>-input</code> is a mandatory parameter and cannot be omitted.<span class="intersentencespace"></span> This is a limitation of the example above for at least two reasons.<span class="intersentencespace"></span> First, in order to run the example, an empty file has to be created on HDFS (<code>hdfs dfs -touchz empty</code>); and second, there will be a limited amount of mappers, since the input data exists on only three HDFS nodes by default.<span class="intersentencespace"></span> Nethertheless, the example still works to illustrate environment variables and counters.<span class="intersentencespace"></span> </p><div class="code"><div class="highlight"><pre><span></span><span class="go">yarn jar /opt/hadoop/hadoop-streaming.jar \</span>
+<span class="go">-D num_points=10000 \</span>
+<span class="go">-files mapper_params.py \</span>
+<span class="go">-mapper 'python mapper_params.py' \</span>
+<span class="go">-reducer 'python mapper_params.py' \</span>
+<span class="go">-numReduceTasks 1 \</span>
+<span class="go">-input empty \</span>
+<span class="go">-output pi</span>
+</pre></div></div>
+<p>The counters can be found in the output, under personal counters:</p>
+<div class="graphics image"><img src="/images/figures/MR_counters_output.png" alt="/images/figures/MR_counters_output" /></div>
+</div>
+<div id="uid33" class="subsection"><h3><a href="mapreduce_chapter_fragment.xhtml#uid33" class="heading hyperref"><span class="number">3.6.2 </span>Data Aggregation</a></h3>
+<p class="noindent">In Structured Query Language (SQL), data can be aggregated by a field or combination of fields.<span class="intersentencespace"></span> For instance, consider a data file below:</p>
+<div class="graphics image"><img src="/images/figures/road_weather_stations_seattle.png" alt="/images/figures/road_weather_stations_seattle" /></div>
+<p>The file contains road and air temperature measurements at several locations around Seattle, WA. The task is to calculate average temperature across the locations, or aggregate by the date/time field.</p>
+<p>In MapReduce implementation, the mapper will scan through the file and use the date/time as the key, while leaving the combination of other fields as the value.<span class="intersentencespace"></span> The reducer will scan through the key-value pairs and aggregate the values pertaining to the same key, which is the date/time.<span class="intersentencespace"></span> Below is the sample code:</p>
+<p>Mapper:
+</p><div class="code"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">re</span>
+
+<span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdin</span><span class="p">:</span>
+    <span class="n">l</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">','</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">l</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="s1">'StationName'</span><span class="p">:</span>
+        <span class="n">loc</span><span class="p">,</span> <span class="n">coord_lat</span><span class="p">,</span> <span class="n">coord_lon</span><span class="p">,</span> <span class="n">date_time</span><span class="p">,</span> <span class="n">rec_id</span><span class="p">,</span> <span class="n">road_temp</span><span class="p">,</span><span class="n">air_temp</span> <span class="o">=</span> <span class="n">l</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="s1">','</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">loc</span><span class="p">,</span><span class="n">road_temp</span><span class="p">,</span><span class="n">air_temp</span><span class="o">.</span><span class="n">strip</span><span class="p">()])</span>
+        <span class="k">print</span><span class="p">(</span><span class="s2">"</span><span class="si">%s</span><span class="se">\t</span><span class="si">%s</span><span class="s2">"</span><span class="o">%</span><span class="p">(</span><span class="n">date_time</span><span class="p">,</span><span class="n">d</span><span class="p">))</span>
+</pre></div></div>
+<p>Reducer:
+</p><div class="code"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">sys</span>
+
+<span class="n">cur_date_time</span> <span class="o">=</span> <span class="s2">""</span>
+<span class="n">avg_road_temp</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">avg_air_temp</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+
+<span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdin</span><span class="p">:</span>
+    <span class="n">date_time</span><span class="p">,</span> <span class="n">data</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">'</span><span class="se">\t</span><span class="s1">'</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">date_time</span> <span class="o">==</span> <span class="n">cur_date_time</span><span class="p">:</span>
+        <span class="n">avg_road_temp</span> <span class="o">+=</span> <span class="nb">float</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">','</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">avg_air_temp</span> <span class="o">+=</span> <span class="nb">float</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">','</span><span class="p">)[</span><span class="mi">2</span><span class="p">])</span>
+        <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">cur_date_time</span> <span class="o">!=</span> <span class="s2">""</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s2">"</span><span class="si">%s</span><span class="se">\t</span><span class="si">%2.2f</span><span class="se">\t</span><span class="si">%2.2f</span><span class="se">\t</span><span class="si">%d</span><span class="s2">"</span><span class="o">%</span><span class="p">(</span><span class="n">cur_date_time</span><span class="p">,</span>
+		<span class="n">avg_road_temp</span><span class="o">/</span><span class="n">count</span><span class="p">,</span><span class="n">avg_air_temp</span><span class="o">/</span><span class="n">count</span><span class="p">,</span><span class="n">count</span><span class="p">))</span>
+        <span class="n">cur_date_time</span> <span class="o">=</span> <span class="n">date_time</span>
+        <span class="n">avg_road_temp</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">','</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">avg_air_temp</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">','</span><span class="p">)[</span><span class="mi">2</span><span class="p">])</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="mi">1</span>
+            
+<span class="k">print</span><span class="p">(</span><span class="s2">"</span><span class="si">%s</span><span class="se">\t</span><span class="si">%2.2f</span><span class="se">\t</span><span class="si">%2.2f</span><span class="se">\t</span><span class="si">%d</span><span class="s2">"</span><span class="o">%</span><span class="p">(</span><span class="n">cur_date_time</span><span class="p">,</span>
+		<span class="n">avg_road_temp</span><span class="o">/</span><span class="n">count</span><span class="p">,</span><span class="n">avg_air_temp</span><span class="o">/</span><span class="n">count</span><span class="p">,</span><span class="n">count</span><span class="p">))</span>
+</pre></div></div>
+<p>The output of this MR job should be similar to the image below, where the first column is the date/time, then the air and road temperature, and the last column contains the number of stations aggregated:</p>
+<div class="graphics image"><img src="/images/figures/road_weather_seattle_agg.png" alt="/images/figures/road_weather_seattle_agg" /></div>
+</div>
+<div id="uid34" class="subsection"><h3><a href="mapreduce_chapter_fragment.xhtml#uid34" class="heading hyperref"><span class="number">3.6.3 </span>Table Joins</a></h3>
+<p class="noindent">Another SQL-like feature that is possible with MapReduce is a join of two (or potentially more) tables.<span class="intersentencespace"></span> SQL defines several types of table joins such as inner, left or right outer joins, and may be others.<span class="intersentencespace"></span> Below is an example of running an inner join between two CSV data files pertaining to population in the state of Iowa.<span class="intersentencespace"></span> The first file represents a table with a summary of county information, such as a county id, its name, and fips code.<span class="intersentencespace"></span> The second is the history of county population containing county id, year, and population.<span class="intersentencespace"></span> The join is done on the county id field, so that the result will contain both the county information and its population for each year.</p>
+<p>The trick here is that the job will receive both files and the mapper must extract the county id and use it as the key.<span class="intersentencespace"></span> The value is the remainder of the data fields plus the file name where the data comes from.<span class="intersentencespace"></span> The reducer receives the keys already sorted, so that all information pertaining to one county is already put together to the sequence of key-value pairs.<span class="intersentencespace"></span> However, there is no guarantee the key-value pairs from which file will come first.<span class="intersentencespace"></span> Below is one example of mapper and reducer to do the inner join:
+</p><div class="code"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="n">file_name</span> <span class="o">=</span> <span class="s1">'missing_file_name'</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">'mapreduce_map_input_file'</span><span class="p">])</span>
+    <span class="k">if</span> <span class="s1">'population'</span> <span class="ow">in</span> <span class="n">file_name</span><span class="p">:</span>
+        <span class="n">file_name</span> <span class="o">=</span> <span class="s1">'population'</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">file_name</span> <span class="o">=</span> <span class="s1">'county'</span>
+<span class="k">except</span><span class="p">:</span>
+    <span class="k">pass</span>
+
+<span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdin</span><span class="p">:</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">fields</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">','</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span> <span class="c1"># extract county_id only</span>
+        <span class="n">county_id</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">fields</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="c1"># intentionally fail at the first line</span>
+        <span class="n">other_fields</span> <span class="o">=</span> <span class="n">fields</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">print</span><span class="p">(</span><span class="s1">'</span><span class="si">%s</span><span class="se">\t</span><span class="si">%s</span><span class="se">\t</span><span class="si">%s</span><span class="s1">'</span><span class="o">%</span><span class="p">(</span><span class="n">county_id</span><span class="p">,</span><span class="n">file_name</span><span class="p">,</span><span class="n">other_fields</span><span class="p">))</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="k">pass</span>
+</pre></div></div>
+<div class="code"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">sys</span>
+
+<span class="n">cur_county_id</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">population_data</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">county_data</span> <span class="o">=</span> <span class="s2">""</span>
+
+<span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdin</span><span class="p">:</span>
+    <span class="n">fields</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">'</span><span class="se">\t</span><span class="s1">'</span><span class="p">,</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">county_id</span><span class="p">,</span> <span class="n">file_name</span> <span class="o">=</span> <span class="n">fields</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">fields</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">cur_county_id</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">cur_county_id</span> <span class="o">=</span> <span class="n">county_id</span>
+        
+    <span class="k">if</span> <span class="n">county_id</span> <span class="o">!=</span> <span class="n">cur_county_id</span><span class="p">:</span> <span class="c1"># proceed to the next county</span>
+        <span class="k">if</span> <span class="n">county_data</span> <span class="o">!=</span> <span class="s2">""</span><span class="p">:</span> <span class="c1"># if county information is there</span>
+            <span class="k">for</span> <span class="n">population</span> <span class="ow">in</span> <span class="n">population_data</span><span class="p">:</span>
+                <span class="k">print</span><span class="p">(</span><span class="s2">"</span><span class="si">%s</span><span class="se">\t</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">"</span><span class="o">%</span><span class="p">(</span><span class="n">county_id</span><span class="p">,</span><span class="n">county_data</span><span class="p">,</span><span class="n">population</span><span class="p">))</span>
+            <span class="n">county_data</span> <span class="o">=</span> <span class="s2">""</span>
+        <span class="n">population_data</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">cur_county_id</span> <span class="o">=</span> <span class="n">county_id</span>
+
+    <span class="n">fields</span> <span class="o">=</span> <span class="n">fields</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> 
+    <span class="k">if</span> <span class="s1">'population'</span> <span class="ow">in</span> <span class="n">file_name</span><span class="p">:</span>
+        <span class="n">population_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">fields</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">county_data</span> <span class="o">=</span> <span class="n">fields</span>
+        
+<span class="k">if</span> <span class="n">county_data</span> <span class="o">!=</span> <span class="s2">""</span><span class="p">:</span> <span class="c1"># if county information is there</span>
+            <span class="k">for</span> <span class="n">population</span> <span class="ow">in</span> <span class="n">population_data</span><span class="p">:</span>
+                <span class="k">print</span><span class="p">(</span><span class="s2">"</span><span class="si">%s</span><span class="se">\t</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">"</span><span class="o">%</span><span class="p">(</span><span class="n">county_id</span><span class="p">,</span><span class="n">county_data</span><span class="p">,</span><span class="n">population</span><span class="p">))</span>
+            <span class="n">county_data</span> <span class="o">=</span> <span class="s2">""</span>
+</pre></div></div>
+</div></div><div id="cid17" class="section"><h2><a href="mapreduce_chapter_fragment.xhtml#cid17" class="heading hyperref"><span class="number">3.7 </span>Review Questions</a></h2>
+<ul>
+<li>Can a mapper (or a reducer) create a file on the node to store temporary computations?<span class="intersentencespace"></span>
+</li>
+<li>How many times will Hadoop restart a failing mapper/reducer task before the job is failed?<span class="intersentencespace"></span>
+</li></ul>
+</div><div id="cid18" class="section"><h2><a href="mapreduce_chapter_fragment.xhtml#cid18" class="heading hyperref"><span class="number">3.8 </span>Exercises</a></h2>
+<ol>
+<li>Use MapReduce to count the number of words of each length in text.<span class="intersentencespace"></span> Example output:
+<div class="code"><div class="highlight"><pre><span></span>1 1234
+2 22100
+3 2312
+...
+50 1
+</pre></div></div>
+<p class="noindent">This means that the text contains 1234 one char long words, 22100 two character long words, etc.<span class="intersentencespace"></span></p>
+</li>
+<li>You work for a social network where you deal with a file containing users with a list of friends.<span class="intersentencespace"></span> Suppose the users are: A,B,C, and D. Then the file format can be as follows:
+<div class="code"><div class="highlight"><pre><span></span>A [B,C,D,E]
+B [A,D,E]
+C [A]
+</pre></div></div>
+<p>Your task is to create a MapReduce job that will return friends in common between two users:
+</p><div class="code"><div class="highlight"><pre><span></span>A B [D,E]
+B C [A]
+</pre></div></div>
+</li>
+<li>Implement <code>SELECT * FROM &lt;table&gt; WHERE &lt;condition&gt;</code> with MapReduce.<span class="intersentencespace"></span>
+</li>
+<li>Implement <code>SELECT MAX(&lt;field&gt;) FROM &lt;table&gt; GROUP BY &lt;field&gt;</code> with MapReduce.<span class="intersentencespace"></span>
+</li>
+<li>Implement inner join between two tables with MapReduce.<span class="intersentencespace"></span>
+</li>
+<li>One method for computing Pi (even though not the most efficient) generates a number of points in a square with side = 2.<span class="intersentencespace"></span> Suppose a circle with radius 1 is inscribed into the square and out of 100 points generated, 75 lay on the circle.<span class="intersentencespace"></span> Then, <code>4*75/10 = 3</code> approximates Pi.<span class="intersentencespace"></span> Write MapReduce code that implements the method.<span class="intersentencespace"></span> Hint: make mappers generate the points and reducer count the ratio.<span class="intersentencespace"></span>
+</li>
+<li>Write MapReduce code to implement matrix multiplication.<span class="intersentencespace"></span>
+</li></ol>
+</div><div id="cha-3_footnotes">
+  <div class="footnotes">
+    <div id="cha-3_footnote-1" class="footnote"><a class="footnote-link" href="#cha-3_footnote-ref-1">1.</a> For this application, there is no need to place it on DFS for two reasons: (1) the file is not large and (2) it will not help with data locality, since the file will reside on a single node.</div>
+    <div id="cha-3_footnote-2" class="footnote"><a class="footnote-link" href="#cha-3_footnote-ref-2">2.</a> http://deron.meranda.us/data/census-derived-all-first.txt</div>
+  </div>
+</div>
+        </body>
+        </html>

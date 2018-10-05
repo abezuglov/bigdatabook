@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+        <!DOCTYPE html>
+
+        <html xmlns="http://www.w3.org/1999/xhtml">
+        <head>
+          <title>Chapter 2</title>
+          <link rel="stylesheet" href="styles/pygments.css" type="text/css" />
+          <link rel="stylesheet" href="styles/softcover.css" type="text/css" />
+          <link rel="stylesheet" href="styles/epub.css" type="text/css" />
+          <link rel="stylesheet" href="styles/custom.css" type="text/css"/>
+          <link rel="stylesheet" href="styles/custom_epub.css" type="text/css"/>
+          <link rel="stylesheet" type="application/vnd.adobe-page-template+xml" href="styles/page-template.xpgt" />
+        </head>
+
+        <body>
+          
+      <div id="cid2" class="chapter"><h1><a href="hdfs_chapter_fragment.xhtml#cid2" class="heading hyperref"><span class="number">Chapter 2 </span>Hadoop Distributed File System</a></h1>
+</div>
+<div id="cid3" class="section"><h2><a href="hdfs_chapter_fragment.xhtml#cid3" class="heading hyperref"><span class="number">2.1 </span>Introduction</a></h2>
+<p class="noindent">Distributed file systems and computation have been known prior to October 2003, yet this date can be considered the official public start of Big Data.<span class="intersentencespace"></span> In that month, Sanjay Ghemawat et al, published their paper on Google File System (GFS), where the authors shed light on how Google deals with efficient and reliable storing and processing of large files.<span class="intersentencespace"></span> The paper received significant interest and it was cited by 7,951 authors.<span class="intersentencespace"></span> Later, Sanjay Ghemawat and Jeffrey Dean published a paper focusing on MapReduce, the programming model for the data.<span class="intersentencespace"></span> The Apache Software Foundation used these resources to develop a free open source platform named Apache Hadoop that implements these and other technologies.<span class="intersentencespace"></span> This chapter discusses some details of the Google File System as well as guidelines to experimenting with Apache Hadoop Distributed File System.</p>
+</div>
+<div id="cid4" class="section"><h2><a href="hdfs_chapter_fragment.xhtml#cid4" class="heading hyperref"><span class="number">2.2 </span>The Google File System</a></h2>
+<p class="noindent">This section is by no means the complete description of GFS. It is rather a brief summary of ideas and implementation details that GFS engineers had used.<span class="intersentencespace"></span> The interested reader is encouraged to study the full paper available on Google Scholar <sup id="cha-2_footnote-ref-1" class="footnote"><a href="#cha-2_footnote-1">1</a></sup>.</p>
+<p>To start, let us focus on how can we save a huge file?<span class="intersentencespace"></span> Well, the first answer that comes to mind is to get a large capacity hard drive.<span class="intersentencespace"></span> However, what if the file size exceeds the size of the largest hard drive and the file is also growing?<span class="intersentencespace"></span> The solution is to use a distributed file system, where the portions of the file will get saved on multiple hard drives, i.e.<span class="intersentencespace"></span> the nodes.<span class="intersentencespace"></span> As necessary, more hard drives can be added to the system (or replaced as the currently running drives fail) to fulfill the needs.<span class="intersentencespace"></span> This is exactly what the engineers at Google have implemented, which is a distributed file system containing multiple commodity computers equipped with commodity hard drives.<span class="intersentencespace"></span> Such hard drives have the regular life expectancy of approximately three years and thus a system with a thousand nodes will experience one failure a day on average.<span class="intersentencespace"></span> Hence, the first assumption is that the failure of a component is the norm.<span class="intersentencespace"></span> To prevent the loss of data, it gets replicated across several nodes (three by default) and when a node is down, there should still be two replicas of the data somewhere.</p>
+<p>To facilitate the storage of large files and in attempt to equally load the drives in the system, the files are also split into chunks.<span class="intersentencespace"></span> In the GFS, the chunks are 64 MB each and it is the chunks that get replicated.<span class="intersentencespace"></span> So in the end, the chunks of one file can be placed on many hard drives in the system.<span class="intersentencespace"></span> Such distribution also helps with data processing, when the clients can run on the same nodes where the data resides.</p>
+<p>GFS has a single master node and multiple chunkservers.<span class="intersentencespace"></span> The master keeps in memory file metadata and the mapping of files to chunks and chunks to chunkservers.<span class="intersentencespace"></span> The metadata and file mapping is also saved in the operation log, which is periodically copied to a persistent storage.<span class="intersentencespace"></span> A significant implementation detail is that the mapping of chunks to chunkservers is not stored persistently.<span class="intersentencespace"></span> This information is updated as necessary via heartbeat messages that the master and chunkservers exchange.<span class="intersentencespace"></span> When the master does not get a heartbeat from a chunkserver, it concludes that the latter is likely down, its chunks are now underreplicated, which needs to be fixed.</p>
+<p>Another important implementation detail is how the client reads or updates file contents in GFS. On such operations, the client first requests the master to return the list of chunkservers containing file data.<span class="intersentencespace"></span> Then the client works <code>directly</code> with the chunkservers without necessarily involving the master.<span class="intersentencespace"></span> On write, the master selects a primary chunkserver and issues a lease to it.<span class="intersentencespace"></span> The primary chunkserver is responsible for transferring data further to the replicas and keeping track of the acknowledgements.<span class="intersentencespace"></span> To optimize the process, the primary will not wait until all data arrives and starts sending it immediately.<span class="intersentencespace"></span> Suppose that there is no network congestion, then the elapsed time to send B bytes to R replicas is:</p>
+<div id="uid3" class="equation"><span class="MathJax_Preview" style="color: inherit; display: none;"></span><div class="MathJax_SVG_Display"><span class="MathJax_SVG" id="MathJax-Element-1-Frame" tabindex="0" style="font-size: 100%; display: inline-block;"><img src="images/texmath/1a66dadf00d1264199af1dbe4f7133ec1aba7f74.png" alt="epub/OEBPS/images/texmath/1a66dadf00d1264199af1dbe4f7133ec1aba7f74" style="height:2.55459em;" /></span></div>
+</div><p class="noindent">where T - transfer rate and L – latency to transfer bytes between two machines.</p>
+<p>At this time, let us switch to Hadoop Distributed File System (HDFS) and try a few things over there.</p>
+</div>
+<div id="cid5" class="section"><h2><a href="hdfs_chapter_fragment.xhtml#cid5" class="heading hyperref"><span class="number">2.3 </span>Hadoop Installation and running</a></h2>
+<div id="uid4" class="subsection"><h3><a href="hdfs_chapter_fragment.xhtml#uid4" class="heading hyperref"><span class="number">2.3.1 </span>Docker</a></h3>
+<p class="noindent">The official Hadoop resources <sup id="cha-2_footnote-ref-2" class="footnote"><a href="#cha-2_footnote-2">2</a></sup>, contain comprehensive information on how to install the framework locally or on a cluster.<span class="intersentencespace"></span> While this may sound as an exciting endeavour, it will unnecessary delay our acquaintance with Hadoop.<span class="intersentencespace"></span> Rather, we can use a Docker container that already has Hadoop cluster installed.</p>
+<p>In case you have not worked with Docker before, it is a container engine that runs on top of Linux operating system and uses its namespaces and control groups.<span class="intersentencespace"></span> The result is similar to running software on a virtual machine, however, in Docker’s case, the ‘virtual machine’ is using the kernel of the host operating system, which makes the process way more efficient.</p>
+<p>Docker operates with images and containers, where an image is a lightweight list of instructions to create a container, and the container is a runnable instance of an image.<span class="intersentencespace"></span> <code>http://hub.docker.com</code> has a library of preconfigured Docker images, where you can find many ready-to-use software packages.<span class="intersentencespace"></span> The image that we need can be found under <code>abezuglov/data201:007</code>.<span class="intersentencespace"></span> The command to pull the image is:</p>
+<div class="code"><div class="highlight"><pre><span></span><span class="gp">#</span> docker pull abezuglov/data201:007
+</pre></div></div>
+<p>The command may take a few minutes to download all the packages and unpack them.<span class="intersentencespace"></span> After it finishes, <code>docker image -ls</code> will show the newly downloaded image.<span class="intersentencespace"></span> The command to start the containerized Hadoop instance is:</p>
+<div class="code"><div class="highlight"><pre><span></span><span class="gp">#</span> docker run --rm -it -p <span class="m">8888</span>:8888 abezuglov/data201:007 
+</pre></div></div>
+<p>Here, apart from the self-explanatory ‘run’ command, parameter <code>-it</code> specifies that the instance will be interactive and it will use the current terminal, <code>-p</code> instructs to use port 8888, and <code>–rm</code> will remove the container files after it finishes.<span class="intersentencespace"></span> We can drop the latter option to store and reuse the container files.</p>
+<div class="graphics image"><img src="images/figures/docker_data201_start.png" alt="images/figures/docker_data201_start" /></div>
+<p>While the container is running, open your web browser and go to <code>http://localhost:8888</code>.<span class="intersentencespace"></span> This will open the Jupyter notebook connected to the container machine.</p>
+<div class="graphics image"><img src="images/figures/docker_data201_browser.png" alt="images/figures/docker_data201_browser" /></div>
+<p>Besides, link <code>http://localhost:50070</code> will bring up the namenode information page:</p>
+<div class="graphics image"><img src="images/figures/docker_data201_namenode_info.png" alt="images/figures/docker_data201_namenode_info" /></div>
+<p>To detach from the terminal window, but keep everything running, use <code>Ctrl-p</code>, <code>Ctrl-q</code>, and close the window.<span class="intersentencespace"></span> The container can also be paused/unpaused with <code>docker pause &lt;container&gt;</code> and <code>docker unpause &lt;container&gt;</code>.</p>
+<p>Finally, to stop and exit from the container, use <code>Ctrl-C</code>.<span class="intersentencespace"></span> Note that unless you remove <code>–rm</code> parameter when starting, the files and notebooks in the container will not get saved.</p>
+</div>
+<div id="uid6" class="subsection"><h3><a href="hdfs_chapter_fragment.xhtml#uid6" class="heading hyperref"><span class="number">2.3.2 </span>Standalone Hadoop installation</a></h3>
+<p class="noindent">Docker containers significantly reduce time to install and setup Hadoop.<span class="intersentencespace"></span> However, even without containers, its installation is straightforward and a step-by-step configuration details can be found online.<sup id="cha-2_footnote-ref-3" class="footnote"><a href="#cha-2_footnote-3">3</a></sup></p>
+<p>While Hadoop is running in standalone mode, its instances are listening on the 9xxx ports of the host computer.<span class="intersentencespace"></span> The exact port numbers may depend on Hadoop configuration and can be found by using <code>netstat -a</code>.<span class="intersentencespace"></span> If you follow the Hadoop installation through Edureka, the ports are:</p>
+<ul>
+<li>Namenode: <code>http://localhost:9870</code>
+</li>
+<li>Secondary Namenode: <code>http://localhost:9868</code>
+</li>
+<li>DataNode: <code>http://localhost:9866</code>
+</li></ul>
+<p>Note that the procedure above installs and setups Hadoop itself.<span class="intersentencespace"></span> However, MapReduce and yarn are not yet configured.</p>
+</div></div>
+<div id="cid6" class="section"><h2><a href="hdfs_chapter_fragment.xhtml#cid6" class="heading hyperref"><span class="number">2.4 </span>Interacting with HDFS</a></h2>
+<p class="noindent">When everything is configured and running, HDFS can be reached through a new terminal window in Jupyter.<span class="intersentencespace"></span> Alternatively, Jupyter notebook cells also allow running bash commands with <code>%%bash &lt;command&gt;</code>.<span class="intersentencespace"></span> Various HDFS functions are available by running:
+</p><div class="code"><div class="highlight"><pre><span></span><span class="gp">#</span> hdfs dfs -&lt;command&gt;
+</pre></div></div>
+<p>where <code>-&lt;command&gt;</code> can be <code>mkdir</code>, <code>cat</code>, <code>chown</code>, <code>chmod</code>, <code>cp</code>, <code>mkdir</code>, <code>mv</code>, <code>rm</code>, <code>rmdir</code>.<span class="intersentencespace"></span> As usual, if <code>-&lt;command&gt;</code> clause is missing, Hadoop will print the list of available commands.</p>
+<p>Let us create a new directory in HDFS and upload a file from the local (Docker) file system.<span class="intersentencespace"></span> The commands below will do exactly this, plus show the contents of the directory as well as the statistics of the newly uploaded file.<span class="intersentencespace"></span> If shakespeare.txt is missing, any text or data file will work<sup id="cha-2_footnote-ref-4" class="footnote"><a href="#cha-2_footnote-4">4</a></sup>:</p>
+<div class="code"><div class="highlight"><pre><span></span><span class="gp">#</span> hdfs dfs -mkdir texts
+<span class="gp">#</span> hdfs dfs -copyFromLocal shakespeare.txt texts/
+<span class="gp">#</span> hdfs dfs -ls texts/
+<span class="gp">#</span> hdfs fsck texts/shakespeare.txt -files -blocks -locations
+</pre></div></div>
+<div class="graphics image"><img src="/images/figures/docker_data201_mkdir_output.png" alt="/images/figures/docker_data201_mkdir_output" /></div>
+<p>In this example, we operate with a single node Hadoop installation, so there is only one replica of the file.<span class="intersentencespace"></span> In case of a real multinode installation, the number of replicas and block sizes can be customized as follows:</p>
+<div class="code"><div class="highlight"><pre><span></span><span class="gp">#</span> hdfs dfs -Ddfs.replication<span class="o">=</span><span class="m">5</span> -Ddfs.blocksize<span class="o">=</span><span class="m">1048576</span> -copyFromLocal &lt;...&gt;
+<span class="gp">#</span> hdfs fsck &lt;...&gt; -files -blocks -locations
+</pre></div></div>
+<p>In the above example, the file(s) will get copied to HDFS and replicated 5 times with the block size of 1MB.</p>
+</div>
+<div id="cid7" class="section"><h2><a href="hdfs_chapter_fragment.xhtml#cid7" class="heading hyperref"><span class="number">2.5 </span>Simple Data Analysis with HDFS via Linux commands</a></h2>
+<p class="noindent">Suppose our goal is to compute the frequency of each word in Shakespeare sonnets (<code>shakespeare.txt</code>), the file that we have previously put to HDFS. This is a slight modification of the word count problem, which is the Hadoop’s version of ‘Hello, world!’.<span class="intersentencespace"></span> The output frequencies should look similar to these:</p>
+<div class="graphics image"><img src="/images/figures/data201_word_freqs.png" alt="/images/figures/data201_word_freqs" /></div>
+<p>A good solution to this problem would utilize the file distirbution across data nodes on the cluster.<span class="intersentencespace"></span> However, we have not discussed MapReduce, which is the framework for running code on multiple nodes in parallel, so let us come up with the basic solution that only uses Linux commands and the piping:</p>
+<div class="code"><div class="highlight"><pre><span></span><span class="gp">#</span>hdfs dfs -cat texts/shakespeare.txt <span class="p">|</span> tr -s <span class="s1">'[[:punct:][:space:]]'</span> <span class="s1">'\n'</span>
+<span class="go">	| sort | uniq -c | sort --key=1nr | python count_words.py| head</span>
+</pre></div></div>
+<p>The first command here (<code>-cat</code>) reads the file, then <code>tr</code> puts each word into a new line, <code>sort</code> and <code>uniq -c</code> sort and count words, then the file is sorted to put the most frequent words at the top and finally a Python program is called that calculates word frequencies.<span class="intersentencespace"></span> The Python program is listed below and in case you work in Jupyter notebook, just put <code>%%writefile count_words.py</code> at the beginning of the cell with the program code.</p>
+<div class="code"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">sys</span>
+<span class="n">words</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">counts</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">total_count</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdin</span><span class="p">:</span>
+    <span class="n">count</span><span class="p">,</span><span class="n">word</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">' '</span><span class="p">)</span>
+    <span class="n">count</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">count</span><span class="p">)</span>
+    <span class="n">total_count</span> <span class="o">+=</span> <span class="n">count</span>
+    <span class="n">words</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">word</span><span class="p">)</span>
+    <span class="n">counts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">count</span><span class="p">)</span>
+    
+<span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">words</span><span class="p">,</span><span class="n">counts</span><span class="p">):</span>
+    <span class="k">print</span><span class="p">(</span><span class="s1">'</span><span class="si">%s</span><span class="se">\t</span><span class="si">%.5f</span><span class="s1">'</span><span class="o">%</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">p</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">/</span><span class="n">total_count</span><span class="p">))</span>
+</pre></div></div>
+<p>While this data analysis example might not seem like a big deal, since other methods can do the same analysis much more efficiently.<span class="intersentencespace"></span> However, it gives another insight on how to process data on a distributed file system.<span class="intersentencespace"></span> Since the file chunks are already located on several data nodes, at least the first part of the analysis code can run on those nodes simultaneously.<span class="intersentencespace"></span> It is the word counting and frequency calculations that we temporarily cannot do in parallel.<span class="intersentencespace"></span> How can it be done?<span class="intersentencespace"></span> This is the primary focus of MapReduce chapter.</p>
+</div>
+<div id="cid8" class="section"><h2><a href="hdfs_chapter_fragment.xhtml#cid8" class="heading hyperref"><span class="number">2.6 </span>Review questions</a></h2>
+<ul>
+<li>How does the master determine whihc replica is on which chunkserver?<span class="intersentencespace"></span> Is this information persistent?<span class="intersentencespace"></span>
+</li>
+<li>How does GFS track the metadata changes?<span class="intersentencespace"></span>
+</li>
+<li>What happens when the master crashes?<span class="intersentencespace"></span>
+</li>
+<li>Does GFS guarantee that the data is <code>defined</code> after a sequence of mutations?<span class="intersentencespace"></span>
+</li>
+<li>Does GFS guarantee that each data record will append <code>exactly once</code>?<span class="intersentencespace"></span>
+</li>
+<li>How does GFS store per-directory data structure?<span class="intersentencespace"></span>
+</li>
+<li>Explain considerations for placing replicas?<span class="intersentencespace"></span> I.e.<span class="intersentencespace"></span> same rack, same node, different racks, etc.<span class="intersentencespace"></span>
+</li>
+<li>Explain considerations for or against creating multiple new files on a lightly loaded chunkserver?<span class="intersentencespace"></span>
+</li>
+<li>When does re-replication occur?<span class="intersentencespace"></span> What are its priority factors?<span class="intersentencespace"></span>
+</li>
+<li>How does GFS delete files?<span class="intersentencespace"></span>
+</li>
+<li>What is a stale replica?<span class="intersentencespace"></span> How is it detected?<span class="intersentencespace"></span>
+</li></ul>
+</div>
+<div id="cid9" class="section"><h2><a href="hdfs_chapter_fragment.xhtml#cid9" class="heading hyperref"><span class="number">2.7 </span>Exercises</a></h2>
+<ol>
+<li>Suppose a cluster needs to store 100 files of 20TB each with replication factor of 3.<span class="intersentencespace"></span> How much memory should a master node have?<span class="intersentencespace"></span> Assume 64 bytes in memory per chunk and the replication factor of 3.<span class="intersentencespace"></span>
+</li>
+<li>What is the elapsed time of sending 1TB of data to 3 replicas over a 1Gbps network with the network delay of 1ms?<span class="intersentencespace"></span>
+</li>
+<li>Download a csv file from Census and upload it to HDFS. Use the block size of 2MB and replication factor 3 (in case you run a single node Hadoop installation, provide the command with the output)
+</li>
+<li>Calculate word frequencies in Shakespeare sonnets, with the most common English words removed.<span class="intersentencespace"></span> You can find English stop words file online and save it locally.<span class="intersentencespace"></span> Create another Python program to filter out the stop words.<span class="intersentencespace"></span>
+</li></ol>
+</div>
+<div id="cha-2_footnotes">
+  <div class="footnotes">
+    <div id="cha-2_footnote-1" class="footnote"><a class="footnote-link" href="#cha-2_footnote-ref-1">1.</a> The paper is available at https://static.googleusercontent.com/media/research.google.com/en//archive/gfs-sosp2003.pdf</div>
+    <div id="cha-2_footnote-2" class="footnote"><a class="footnote-link" href="#cha-2_footnote-ref-2">2.</a> http://hadoop.apache.org/</div>
+    <div id="cha-2_footnote-3" class="footnote"><a class="footnote-link" href="#cha-2_footnote-ref-3">3.</a> https://www.edureka.co/blog/install-hadoop-single-node-hadoop-cluster</div>
+    <div id="cha-2_footnote-4" class="footnote"><a class="footnote-link" href="#cha-2_footnote-ref-4">4.</a> In case it is not available, you can download it with command: ‘curl https://ocw.mit.edu/ans7870/6/6.006/s08/lecturenotes/files/t8.shakespeare.txt &gt; shakespeare.txt’</div>
+  </div>
+</div>
+    
+        </body>
+        </html>
