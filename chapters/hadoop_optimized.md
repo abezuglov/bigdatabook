@@ -138,6 +138,57 @@ yarn jar /opt/hadoop/hadoop-streaming.jar \
 ...
 ```
 
+## Data Compression
+Data compression allows saving space on HDFS and network bandwidth, while at the price of memory and CPU resources needed to run compression/decompression algorithms. Moreover the compression affects how well or if the data is splittable to blocks. Below is a brief overview of compression techniques:
+
+* .deflate, .gz (gzip). -- DEFLATE algorithm (based on LZ77 and LZ78). gz -- is a deflate with a header and checksum. Not splittable.
+* bz2 (bzip) -- Burrows-Wheeler algorithm, more efficient in compressing than DEFLATE. Slow compression, fast decompression. Splittable.
+* lzo -- Fast compression and extremely fast decompression. Not natively splittable. 
+* snappy -- High speeds and reasonable compression. Splittable.
+
+Compression can occur at two stages of the job: after map and after reduce (the output). The code below will invoke compression at both stages, but using different compression codecs:
+```console
+...
+-D mapreduce.compress.map.output =true
+-D mapreduce.output.compress=true
+-D mapreduce.map.output.compression.codec=<codec>
+-D mapreduce.output.compression.codec=<codec>
+...
+```
+
+Other compression codecs are:
+
+* DEFLATE org.apache.hadoop.io.compress.DefaultCodec
+* gzip org.apache.hadoop.io.compress.GzipCodec
+* bz2 org.apache.hadoop.io.compress.BZip2Codec
+* lzo com.hadoop.compression.lzo.LzopCodec
+* lz4 org.apache.hadoop.io.compress.Lz4Codec
+* snappy org.apache.hadoop.io.compress.SnappyCodec
+
+In example below, the map outputs are compressed with gzip (the default codec) and the job outputs -- with lzo:
+```console
+$yarn jar /opt/hadoop/hadoop-streaming.jar \
+-D mapreduce.compress.map.output=true \
+-D mapreduce.output.compress=true \
+-D mapreduce.map.output.compression.codec=org.apache.hadoop.io.compress.DefaultCodec \
+-D mapreduce.output.compression.codec=com.hadoop.compression.lzo.LzopCodec \
+-files mapper.py,reducer.py \
+-mapper 'python mapper.py' \
+-combiner 'python reducer.py' \
+-reducer 'python reducer.py' \
+-numReduceTasks 1 \
+-input /texts/shakespeare.txt \
+-output wordcount
+```
+
+Figure below illustrates Hadoop report containing map output bytes and `materialized` map output bytes, i.e. the size of data after compression with gzip:
+![materialized](/images/figures/mr_sort_materialized_bytes.png)
+
+Also, even though the output is compressed as well, HDFS will automatically decompresses it to upon calling -cat:
+![compressed_output](/images/figures/mr_compressed_output.png)
+
+In summary, for frequently accessed and used data, `snap` and `lzo` are the best choices. For other data that are not used actively, the best choices are the `gzip` and `bzip`.
+
 ## Review Questions
 * Come up with a combiner for a MapReduce job that calculates the median of numbers
 
