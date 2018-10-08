@@ -132,7 +132,8 @@ Comparator specifies a custom method to sorting keys at the shuffle and sort sta
 
 ```console
 yarn jar /opt/hadoop/hadoop-streaming.jar \
--D mapreduce.job.output.key.comparator.class=org.apache.hadoop.mapreduce.lib.partition.KeyFieldBasedComparator \
+-D mapreduce.job.output.key.comparator.class=\
+  org.apache.hadoop.mapreduce.lib.partition.KeyFieldBasedComparator \
 -D mapreduce.map.output.key.field.separator=. \
 -D mapreduce.partition.keycomparator.options=-k2,2nr \
 ...
@@ -187,17 +188,26 @@ Figure below illustrates Hadoop report containing map output bytes and `material
 Also, even though the output is compressed as well, HDFS will automatically decompresses it to upon calling -cat:
 ![compressed_output](/images/figures/mr_compressed_output.png)
 
-In summary, for frequently accessed and used data, `snap` and `lzo` are the best choices. For other data that are not used actively, the best choices are the `gzip` and `bzip`.
+In summary, for frequently accessed and used data (the `hot` data), `snap` and `lzo` are the best choices. The top choices for other types of data are `gzip` and `bzip`.
 
 ## Review Questions
-* Come up with a combiner for a MapReduce job that calculates the median of numbers
+* Can you come up with a combiner for a MapReduce job that calculates the median of numbers?
+* Suppose that a MapReduce job has `m` mappers and `r` reducers. How many combiners does it have?
+* When applied to the keys, the partitioner splits it into `p` partitions. What are the practical limitations to the number of reducers? 
+* What happens when the number of partitions exceeds the number of reducers?
+* What happens when the number of reducers is greater than the number of partitions?
+* Explain the advantage of comparator as opposed to the `CLI` sort command.
+* What is the purpose of supporting multiple compression algorithms?
+
 
 ## Exercises
 1. Create a MapReduce job (mapper, reducer, and combiner) to calculate bigram frequencies in English.
 2. Create a MapReduce job (mapper, reducer, and combiner) to calculate word collocations (use two words) in English.
 3. Use MapReduce to split ISIS tweets file into two files. The first containing the original tweets and the second -- the retweets. The retweets will have `RT` at the beginning of the message. Use counters to output the number of original tweets, retweets, and the total number of tweets. Hint: use partitioner and set two reduce jobs.
 4. Pass through the tweets and generate the list of users. Do your best to clean the words and numbers that are not user names. The output should be a file where user names separated by commas. You have to treat the file as Big Data, i.e. use MapReduce. 
-5. Determine which user was mentioned the most. Use only the original users, i.e. those from the file. Sort by the number of retweets using key comparator. 
+5. Determine which user was mentioned the most. Use only the original users, i.e. those from the file above. Sort by the number of retweets using key comparator. 
+6. Write a MapReduce job to compress shakespeare.txt with gzip
+7. Run the word count job on Wiki articles, where map output is compressed. Choose the most appropriate compression algorithm.
 
 [^why_9999]: Why is it 9999 and not 10000? The first row in the dataset is the description containing the field names that is skipped. 
 
