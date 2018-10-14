@@ -8,3 +8,4 @@ intro_chapter.md
 hdfs_chapter.md
 mapreduce_chapter.md
 hadoop_optimized.md
+intro_apache_spark.md
